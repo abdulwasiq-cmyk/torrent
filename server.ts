@@ -50,7 +50,6 @@ export interface StoredTorrent {
   uploadSpeed: number;
   seeds: number;
   leechers: number;
-  cached: boolean;
   createdAt: number;
   completedAt?: number;
   trackers: string[];
@@ -282,7 +281,6 @@ async function mapQBitTorrent(info: any): Promise<StoredTorrent> {
     uploadSpeed: Number(info.upspeed || 0),
     seeds: Number(info.num_seeds || 0),
     leechers: Number(info.num_leechs || 0),
-    cached: false,
     createdAt: Number(info.added_on || 0) > 0 ? Number(info.added_on) * 1000 : Date.now(),
     ...(completedAt > 0 ? { completedAt: completedAt * 1000 } : {}),
     trackers,
@@ -472,26 +470,25 @@ app.post('/api/torrents/inspect', async (req, res) => {
     const { infoHash, name, trackers } = parseMagnet(magnet);
 
     const existingInfo = await getQBitInfo(infoHash);
-    const cached = existingInfo
+    const existingTorrent = existingInfo
       ? await mapQBitTorrent(existingInfo)
       : await fetchTorrentMetadataFromQBit(magnet, infoHash, `inspect_${infoHash.slice(0, 10)}`, name);
-    if (!cached) {
+    if (!existingTorrent) {
       return res.status(404).json({ error: 'Unable to inspect this magnet link. qBittorrent metadata is unavailable.' });
     }
 
     res.json({
       alreadyExists: Boolean(existingInfo),
-      name: cached.name,
+      name: existingTorrent.name,
       infoHash,
       magnetUri: existingInfo?.magnet_uri || magnet,
-      totalSize: cached.totalSize,
-      fileCount: cached.files.length,
-      files: cached.files.map((f) => ({
+      totalSize: existingTorrent.totalSize,
+      fileCount: existingTorrent.files.length,
+      files: existingTorrent.files.map((f) => ({
         ...f,
         downloadUrl: `/api/download/${f.id}`,
       })),
       trackers,
-      cached: false,
     });
   } catch (err: any) {
     res.status(400).json({ error: err.message || 'Failed to inspect magnet link' });
@@ -706,7 +703,6 @@ app.get('/api/system/stats', async (req, res) => {
   res.json({
     cloudSpeed: formatQBitSpeed(totalDownloadSpeed || 0),
     activeSeeds: totalPeers,
-    cacheHitRatio: 'N/A',
     uptime: diskStats.totalBytes > 0 ? 'available' : 'unavailable',
     activeConnections: totalPeers || 0,
     debridNodes: 0,

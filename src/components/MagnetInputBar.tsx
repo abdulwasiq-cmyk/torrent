@@ -1,44 +1,11 @@
 import React, { useState } from 'react';
-import { Zap, Link2, Clipboard, ArrowRight, Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Zap, Link2, Clipboard, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 
 interface MagnetInputBarProps {
   onAddMagnet: (magnet: string) => Promise<boolean>;
   isLoading: boolean;
   loadingMessage?: string;
 }
-
-const SAMPLE_MAGNETS = [
-  {
-    name: 'Breaking Bad S01 (16 Files)',
-    size: '2.83 GB',
-    type: '16 Files Series',
-    magnet: 'magnet:?xt=urn:btih:3b8f60c29d612e698188de217743d11b3ef25890&dn=Breaking+Bad+Season+1+Complete&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
-  },
-  {
-    name: 'Big Buck Bunny (1080p)',
-    size: '844 MB',
-    type: 'Video',
-    magnet: 'magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny+1080p&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
-  },
-  {
-    name: 'Tears of Steel (Sci-Fi)',
-    size: '570 MB',
-    type: 'Video',
-    magnet: 'magnet:?xt=urn:btih:254f664a78441c2c31e0b571167909386d3fd327&dn=Tears+of+Steel+1080p&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
-  },
-  {
-    name: 'Ubuntu 24.04 Desktop ISO',
-    size: '2.75 GB',
-    type: 'OS / ISO',
-    magnet: 'magnet:?xt=urn:btih:26478951ad73e0428d052a65f909db51d3b903e8&dn=ubuntu-24.04-desktop-amd64.iso&tr=https%3A%2F%2Ftorrent.ubuntu.com%2Fannounce',
-  },
-  {
-    name: 'Sintel (Blender 4K)',
-    size: '1.2 GB',
-    type: 'Animation',
-    magnet: 'magnet:?xt=urn:btih:08a806048a1a25b2f7477152245071f549b4fb79&dn=Sintel+4K&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce',
-  },
-];
 
 export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isLoading, loadingMessage }) => {
   const [magnetInput, setMagnetInput] = useState('');
@@ -68,18 +35,6 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
       }
     } catch {
       // Permission denied or not supported in iframe
-    }
-  };
-
-  const handlePickSample = async (sampleMagnet: string) => {
-    setMagnetInput(sampleMagnet);
-    setError(null);
-    setSuccessMsg(null);
-    const success = await onAddMagnet(sampleMagnet);
-    if (success) {
-      setSuccessMsg('Sample torrent loaded into cloud storage!');
-      setMagnetInput('');
-      setTimeout(() => setSuccessMsg(null), 4000);
     }
   };
 
@@ -167,29 +122,6 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
         )}
       </form>
 
-      {/* Quick Test Samples */}
-      <div className="mt-4 pt-4 border-t border-neutral-100">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider">
-            Quick 1-Click Test Magnets:
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {SAMPLE_MAGNETS.map((sample) => (
-            <button
-              key={sample.name}
-              type="button"
-              onClick={() => handlePickSample(sample.magnet)}
-              disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-100 hover:bg-emerald-50 text-neutral-700 hover:text-emerald-700 border border-neutral-200 hover:border-emerald-300 transition-all cursor-pointer"
-            >
-              <span>{sample.name}</span>
-              <span className="text-neutral-400 text-[10px] font-mono">({sample.size})</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };

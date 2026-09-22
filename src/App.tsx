@@ -146,7 +146,6 @@ export default function App() {
           uploadSpeed: 0,
           seeds: 0,
           leechers: 0,
-          cached: false,
           createdAt: Date.now(),
           completedAt: Date.now(),
           trackers: inspectData.trackers || [],
