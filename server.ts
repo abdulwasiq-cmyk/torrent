@@ -603,45 +603,71 @@ app.get('/api/stream/:fileId', async (req, res) => {
 
   const { file } = result;
 
-  // Only stream files that exist on disk. No synthetic fallback content.
   const safePath = file.downloadPath ? safeDownloadPath(file.downloadPath) : null;
   if (!safePath || !fs.existsSync(safePath)) {
     return res.status(404).send('This file is not available on disk yet.');
   }
 
-  const isTextFile = ['.srt', '.vtt', '.nfo', '.txt'].some((ext) => file.name.toLowerCase().endsWith(ext));
-  if (isTextFile) {
-    res.setHeader('Content-Type', file.mimeType || 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
-    return fs.createReadStream(safePath).pipe(res);
-  }
-
-  // Only stream files that exist on disk. No fake sample streams.
   const stat = fs.statSync(safePath);
   const fileSize = stat.size;
-  const range = req.headers.range;
+  const isHeadRequest = req.method === 'HEAD';
+  const isTextFile = ['.srt', '.vtt', '.nfo', '.txt'].some((ext) => file.name.toLowerCase().endsWith(ext));
 
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Content-Type', file.mimeType || (isTextFile ? 'text/plain; charset=utf-8' : 'application/octet-stream'));
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
+
+  if (req.headers.range) {
+    const rangeHeader = req.headers.range.replace(/^bytes=/, '');
+    const [startRaw, endRaw] = rangeHeader.split('-', 2);
+    const start = Number.parseInt(startRaw, 10);
+    const end = endRaw ? Number.parseInt(endRaw, 10) : fileSize - 1;
+
+    if (!Number.isFinite(start) || start < 0 || start >= fileSize || end < start) {
+      res.status(416).setHeader('Content-Range', `bytes */${fileSize}`);
+      return res.end();
+    }
+
+    const rangeEnd = Math.min(end, fileSize - 1);
+    const rangeLength = rangeEnd - start + 1;
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${rangeEnd}/${fileSize}`);
+    res.setHeader('Content-Length', String(rangeLength));
+
+    if (isHeadRequest) {
+      return res.end();
+    }
+
+    const fileStream = fs.createReadStream(safePath, { start, end: rangeEnd });
+    return fileStream.pipe(res);
+  }
+
+  res.setHeader('Content-Length', String(fileSize));
+  if (isHeadRequest) {
+    return res.end();
+  }
+
+  return fs.createReadStream(safePath).pipe(res);
+});
+
+app.head('/api/stream/:fileId', async (req, res) => {
+  const result = await findFile(req.params.fileId);
+  if (!result) {
+    return res.status(404).end();
+  }
+
+  const { file } = result;
+  const safePath = file.downloadPath ? safeDownloadPath(file.downloadPath) : null;
+  if (!safePath || !fs.existsSync(safePath)) {
+    return res.status(404).end();
+  }
+
+  const stat = fs.statSync(safePath);
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
   res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.name)}"`);
-
-  if (range) {
-    const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-    const chunksize = end - start + 1;
-    const fileStream = fs.createReadStream(safePath, { start, end });
-
-    res.writeHead(206, {
-      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-      'Content-Length': chunksize,
-    });
-    fileStream.pipe(res);
-    return;
-  }
-
-  res.setHeader('Content-Length', fileSize);
-  fs.createReadStream(safePath).pipe(res);
+  res.setHeader('Content-Length', String(stat.size));
+  return res.end();
 });
 
 // Download Entire Torrent or Selected Files as ZIP with Genuine Binary Files
