@@ -181,41 +181,41 @@ async function getQBitTorrents(): Promise<any[]> {
   return Array.isArray(torrents) ? torrents : [];
 }
 
-function safeDownloadPath(candidate: string, allowedRoots: string[] = [QBIT_DOWNLOAD_DIR, QBIT_CONTAINER_DOWNLOAD_DIR]): string | null {
+function safeDownloadPath(candidate: string): string | null {
   const hostRoot = path.resolve(QBIT_DOWNLOAD_DIR);
-  const qBitRoot = path.resolve(QBIT_CONTAINER_DOWNLOAD_DIR);
+  const containerRoot = path.resolve(QBIT_CONTAINER_DOWNLOAD_DIR);
+  const normalizedInput = candidate.replace(/\\/g, '/');
 
-  const normalizedCandidates = new Set<string>();
-  normalizedCandidates.add(path.resolve(candidate));
+  const candidates = new Set<string>();
+  candidates.add(path.resolve(candidate));
 
-  const qBitMatch = /^(.+?)\/(?:downloads?)\/(.*)$/.exec(candidate.replace(/\\/g, '/'));
-  if (qBitMatch) {
-    const [, , relativeTail] = qBitMatch;
-    const mappedCandidate = path.resolve(hostRoot, relativeTail || '.');
-    normalizedCandidates.add(mappedCandidate);
+  if (normalizedInput.startsWith(`${containerRoot.replace(/\\/g, '/')}/`)) {
+    const relative = normalizedInput.slice(containerRoot.length).replace(/^\/+/, '');
+    candidates.add(path.resolve(hostRoot, relative));
   }
 
-  if (candidate.replace(/\\/g, '/').startsWith(`${QBIT_CONTAINER_DOWNLOAD_DIR.replace(/\\/g, '/')}/`)) {
-    const relative = path.relative(qBitRoot, path.resolve(candidate));
-    normalizedCandidates.add(path.resolve(hostRoot, relative));
-  }
-
-  for (const resolvedCandidate of normalizedCandidates) {
-    if (resolvedCandidate === hostRoot || resolvedCandidate.startsWith(`${hostRoot}${path.sep}`)) {
-      return resolvedCandidate;
-    }
-  }
-
-  const roots = allowedRoots.map((root) => path.resolve(root)).filter(Boolean);
-  for (const resolved of roots) {
-    for (const candidatePath of normalizedCandidates) {
-      if (candidatePath === resolved || candidatePath.startsWith(`${resolved}${path.sep}`)) {
-        return candidatePath;
-      }
+  for (const candidatePath of candidates) {
+    if (candidatePath === hostRoot || candidatePath.startsWith(`${hostRoot}${path.sep}`)) {
+      return candidatePath;
     }
   }
 
   return null;
+}
+
+function resolveQBitContentPath(contentPath: string, relativePath: string): string {
+  const baseContentPath = String(contentPath || QBIT_DOWNLOAD_DIR).replace(/\\/g, '/');
+  const normalizedRelativePath = String(relativePath || '').replace(/\\/g, '/');
+
+  if (baseContentPath && fs.existsSync(baseContentPath) && fs.statSync(baseContentPath).isFile()) {
+    return baseContentPath;
+  }
+
+  if (baseContentPath && path.basename(baseContentPath) === path.basename(normalizedRelativePath)) {
+    return path.resolve(baseContentPath);
+  }
+
+  return path.join(baseContentPath, normalizedRelativePath);
 }
 
 function qBitStatus(state: string, progress: number): StoredTorrent['status'] {
@@ -228,12 +228,11 @@ function qBitStatus(state: string, progress: number): StoredTorrent['status'] {
 async function mapQBitFiles(info: any, torrentId = String(info.hash)): Promise<StoredFile[]> {
   const files = await qBitFetch<any[]>(`/api/v2/torrents/files?hash=${encodeURIComponent(info.hash)}`);
   const contentPath = String(info.content_path || info.save_path || QBIT_DOWNLOAD_DIR);
-  const allowedRoots = [QBIT_DOWNLOAD_DIR, QBIT_CONTAINER_DOWNLOAD_DIR, contentPath].filter(Boolean);
 
   return (Array.isArray(files) ? files : []).map((file, index) => {
     const relativePath = String(file.name || `file_${index + 1}`).replace(/\\/g, '/');
-    const candidatePath = path.join(contentPath, relativePath);
-    const downloadPath = safeDownloadPath(candidatePath, allowedRoots) || undefined;
+    const candidatePath = resolveQBitContentPath(contentPath, relativePath);
+    const downloadPath = safeDownloadPath(candidatePath) || undefined;
     const { type, mimeType, streamable } = determineFileType(relativePath);
     return {
       id: makeStableFileId(String(info.hash), relativePath, index),
