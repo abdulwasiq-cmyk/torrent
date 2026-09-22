@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Info, Copy, Check, Radio, Link as LinkIcon, ShieldCheck } from 'lucide-react';
 import { TorrentItem } from '../types';
-import { formatBytes } from '../utils/formatters';
+import { formatBytes, formatSpeed } from '../utils/formatters';
 
 interface TorrentInfoModalProps {
   torrent: TorrentItem | null;
@@ -96,15 +96,15 @@ export const TorrentInfoModal: React.FC<TorrentInfoModalProps> = ({ torrent, onC
               </span>
             </div>
             <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200 text-center">
-              <span className="text-[11px] text-neutral-500 block">Active Seeds</span>
+              <span className="text-[11px] text-neutral-500 block">Peers</span>
               <span className="text-sm font-semibold text-emerald-600 font-mono">
-                {torrent.seeds}
+                {torrent.seeds + torrent.leechers}
               </span>
             </div>
             <div className="bg-neutral-50 p-3 rounded-xl border border-neutral-200 text-center">
-              <span className="text-[11px] text-neutral-500 block">Cache Status</span>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-0.5">
-                Instant (100%)
+              <span className="text-[11px] text-neutral-500 block">Download</span>
+              <span className="text-sm font-semibold text-emerald-700 font-mono">
+                {formatSpeed(torrent.downloadSpeed)}
               </span>
             </div>
           </div>

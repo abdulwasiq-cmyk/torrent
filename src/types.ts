@@ -33,7 +33,8 @@ export interface TorrentItem {
 
 export interface StorageStats {
   usedBytes: number;
-  totalBytes: number; // default 5GB = 5 * 1024 * 1024 * 1024
+  totalBytes: number;
+  freeBytes: number;
   torrentCount: number;
   fileCount: number;
 }
@@ -43,4 +44,17 @@ export interface CloudStats {
   activeSeeds: number;
   cacheHitRatio: string;
   uptime: string;
+}
+
+export interface DownloadQueueItem {
+  id: string;
+  torrentId: string;
+  torrentName: string;
+  fileId: string;
+  name: string;
+  size: number;
+  progress: number;
+  speed: number;
+  status: 'queued' | 'downloading' | 'done';
+  startedAt: number;
 }

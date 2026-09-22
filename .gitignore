@@ -6,3 +6,16 @@ coverage/
 *.log
 .env*
 !.env.example
+.env
+
+# Local torrent downloads and qBittorrent runtime state
+downloads/
+qbittorrent/config/
+qbittorrent/logs/
+!qbittorrent/config/qBittorrent/
+!qbittorrent/config/qBittorrent/qBittorrent.conf
+
+# Local dev cache
+.vite/
+.cache/
+.tmp/

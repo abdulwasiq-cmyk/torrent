@@ -15,7 +15,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { TorrentItem, TorrentFile } from '../types';
-import { formatBytes, timeAgo } from '../utils/formatters';
+import { formatBytes, formatSpeed, timeAgo } from '../utils/formatters';
 
 interface TorrentCardProps {
   torrent: TorrentItem;
@@ -128,8 +128,10 @@ export const TorrentCard: React.FC<TorrentCardProps> = ({
               <span>•</span>
               <span className="inline-flex items-center gap-1 text-neutral-600 font-sans">
                 <Users className="w-3 h-3 text-neutral-400" />
-                {torrent.seeds} seeds
+                {torrent.seeds + torrent.leechers} peers
               </span>
+              <span>•</span>
+              <span>{formatSpeed(torrent.downloadSpeed)} down</span>
               <span>•</span>
               <span>{timeAgo(torrent.createdAt)}</span>
             </div>
@@ -263,8 +265,9 @@ export const TorrentCard: React.FC<TorrentCardProps> = ({
           <span>{torrent.files.length} files</span>
           <span className="flex items-center gap-1 text-neutral-600">
             <Users className="w-3 h-3 text-neutral-400" />
-            {torrent.seeds}
+            {torrent.seeds + torrent.leechers} peers
           </span>
+          <span>{formatSpeed(torrent.downloadSpeed)} DL</span>
         </div>
       </div>
 

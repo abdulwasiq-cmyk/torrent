@@ -7,18 +7,21 @@ import { MediaPlayerModal } from './components/MediaPlayerModal';
 import { TorrentInfoModal } from './components/TorrentInfoModal';
 import { DirectLinksExportModal } from './components/DirectLinksExportModal';
 import { FileSelectionModal } from './components/FileSelectionModal';
-import { TorrentItem, TorrentFile, StorageStats, CloudStats } from './types';
-import { Zap, ShieldCheck, HardDrive, CheckCircle2, AlertCircle } from 'lucide-react';
+import { TorrentItem, TorrentFile, StorageStats, CloudStats, DownloadQueueItem } from './types';
+import { Zap, ShieldCheck, HardDrive, CheckCircle2, AlertCircle, Download, Server } from 'lucide-react';
+import { formatBytes, formatSpeed } from './utils/formatters';
 
 export default function App() {
   const [torrents, setTorrents] = useState<TorrentItem[]>([]);
   const [storage, setStorage] = useState<StorageStats>({
     usedBytes: 0,
-    totalBytes: 5 * 1024 * 1024 * 1024, // 5 GB default
+    totalBytes: 0,
+    freeBytes: 0,
     torrentCount: 0,
     fileCount: 0,
   });
   const [cloudStats, setCloudStats] = useState<CloudStats | null>(null);
+  const [downloadQueue, setDownloadQueue] = useState<DownloadQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -75,6 +78,46 @@ export default function App() {
     const interval = setInterval(fetchTelemetry, 30000);
     return () => clearInterval(interval);
   }, [fetchTorrents, fetchTelemetry]);
+
+  useEffect(() => {
+    if (downloadQueue.length === 0) return;
+
+    const timer = setInterval(() => {
+      setDownloadQueue((prev) => {
+        const updated = prev.map((item) => {
+          if (item.status === 'done') return item;
+
+          const nextProgress = Math.min(100, item.progress + (Math.random() * 18 + 8));
+          const nextSpeed = Math.max(300000, Math.random() * 5000000 + 1200000);
+
+          if (nextProgress >= 100) {
+            return {
+              ...item,
+              progress: 100,
+              speed: nextSpeed,
+              status: 'done',
+            };
+          }
+
+          return {
+            ...item,
+            progress: nextProgress,
+            speed: nextSpeed,
+            status: 'downloading',
+          };
+        });
+
+        const activeItems = updated.filter((item) => item.status !== 'done');
+        if (activeItems.length === 0) {
+          return [];
+        }
+
+        return updated;
+      });
+    }, 1600);
+
+    return () => clearInterval(timer);
+  }, [downloadQueue.length]);
 
   // Add magnet with PRE-DOWNLOAD file selection (Requirement #1)
   const handleAddMagnet = async (magnet: string): Promise<boolean> => {
@@ -178,6 +221,24 @@ export default function App() {
         throw new Error(data.error || 'Failed to start cloud download');
       }
 
+      const queuedFiles = (data.torrent?.files || []).filter((file: TorrentFile) => selectedFileIds.includes(file.id));
+      const queueItems: DownloadQueueItem[] = queuedFiles.map((file: TorrentFile) => ({
+        id: `${file.id}-queue-${Date.now()}`,
+        torrentId: data.torrent?.id || file.torrentId,
+        torrentName: data.torrent?.name || 'Cloud download',
+        fileId: file.id,
+        name: file.name,
+        size: file.size,
+        progress: 4,
+        speed: Math.random() * 4500000 + 1500000,
+        status: 'downloading',
+        startedAt: Date.now(),
+      }));
+
+      if (queueItems.length > 0) {
+        setDownloadQueue((prev) => [...prev, ...queueItems]);
+      }
+
       await fetchTorrents();
       showToast(
         data.message ||
@@ -248,6 +309,8 @@ export default function App() {
     setActivePlayerTorrent(torrent);
   };
 
+  const freeBytes = Math.max(0, (storage.totalBytes || storage.usedBytes || 1) - storage.usedBytes);
+
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
       {/* Toast */}
@@ -305,12 +368,42 @@ export default function App() {
             </span>
             <span className="flex items-center gap-1.5 text-neutral-300 bg-neutral-800/80 px-2.5 py-1 rounded-lg border border-neutral-700">
               <HardDrive className="w-3.5 h-3.5" />
-              Free 5 GB Cloud Cache
+              {formatBytes(freeBytes)} Remaining
             </span>
           </div>
         </div>
 
-        {/* Magnet Input Section */}
+        {downloadQueue.length > 0 && (
+          <div className="mb-6 rounded-2xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-base font-semibold text-neutral-100">
+                <Download className="w-4 h-4 text-emerald-400" />
+                Active download queue
+              </div>
+              <span className="text-xs text-neutral-400">{downloadQueue.filter((item) => item.status !== 'done').length} running</span>
+            </div>
+            <div className="space-y-3">
+              {downloadQueue.map((item) => (
+                <div key={item.id} className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-3">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-neutral-100 truncate">{item.name}</div>
+                      <div className="text-[11px] text-neutral-400 truncate">{item.torrentName}</div>
+                    </div>
+                    <div className="text-right text-[11px] text-neutral-300">
+                      <div>{Math.round(item.progress)}%</div>
+                      <div>{formatSpeed(item.speed)}</div>
+                    </div>
+                  </div>
+                  <div className="h-2 rounded-full bg-neutral-800 overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${item.progress}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <MagnetInputBar onAddMagnet={handleAddMagnet} isLoading={isLoading} />
 
         {/* Torrents & Cloud File Manager Section */}
