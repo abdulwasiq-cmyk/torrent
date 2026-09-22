@@ -510,7 +510,7 @@ export const FolderModal: React.FC<FolderModalProps> = ({ torrent, onClose, onOp
         <div className="px-6 py-3.5 border-t border-neutral-200 bg-neutral-50 flex items-center justify-between text-xs text-neutral-500 gap-3">
           <span className="flex items-center gap-1.5 truncate">
             <HardDrive className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="truncate">High-speed Seedr cloud debrid download.</span>
+            <span className="truncate">qBittorrent download and file management.</span>
           </span>
 
           <div className="flex items-center gap-2 shrink-0">

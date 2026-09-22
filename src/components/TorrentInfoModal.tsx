@@ -61,7 +61,7 @@ export const TorrentInfoModal: React.FC<TorrentInfoModalProps> = ({ torrent, onC
             </div>
             <div>
               <h3 className="text-base font-semibold text-neutral-900">Torrent Telemetry & Details</h3>
-              <p className="text-xs text-neutral-500">Debrid cache inspection and swarm metadata</p>
+              <p className="text-xs text-neutral-500">qBittorrent state and swarm metadata</p>
             </div>
           </div>
           <button

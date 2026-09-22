@@ -54,7 +54,7 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
 
     const success = await onAddMagnet(magnetInput.trim());
     if (success) {
-      setSuccessMsg('Torrent fetched and cloud-cached instantly!');
+      setSuccessMsg('Torrent added to qBittorrent.');
       setMagnetInput('');
       setTimeout(() => setSuccessMsg(null), 4000);
     }
@@ -91,7 +91,7 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
           Instant Cloud Torrent Fetcher
         </h2>
         <p className="text-sm text-neutral-500 mt-1">
-          Paste any BitTorrent magnet link or 40-character info hash. Our debrid engine checks our multi-terabyte cloud cache to prepare direct download links instantly without waiting for peers.
+          Paste a BitTorrent magnet link or 40-character info hash. qBittorrent will resolve the metadata and manage the download.
         </p>
       </div>
 
@@ -129,7 +129,7 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>{loadingMessage || 'Resolving Debrid...'}</span>
+                <span>{loadingMessage || 'Resolving qBittorrent metadata...'}</span>
               </>
             ) : (
               <>

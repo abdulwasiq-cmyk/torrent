@@ -12,7 +12,6 @@ coverage/
 downloads/
 qbittorrent/config/
 qbittorrent/logs/
-!qbittorrent/config/qBittorrent/
 !qbittorrent/config/qBittorrent/qBittorrent.conf
 
 # Local dev cache

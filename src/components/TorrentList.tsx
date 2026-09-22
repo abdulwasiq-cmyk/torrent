@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, LayoutGrid, List, Sparkles, FolderOpen, ArrowUpDown } from 'lucide-react';
+import { Search, LayoutGrid, List, FolderOpen, ArrowUpDown } from 'lucide-react';
 import { TorrentItem, TorrentFile } from '../types';
 import { TorrentCard } from './TorrentCard';
 
@@ -9,7 +9,6 @@ interface TorrentListProps {
   onOpenPlayer: (file: TorrentFile, torrent: TorrentItem) => void;
   onOpenInfo: (torrent: TorrentItem) => void;
   onDelete: (torrentId: string) => void;
-  onLoadSamples: () => void;
   onSelectFiles?: (torrent: TorrentItem) => void;
   onOpenSeparateLinks?: (torrent: TorrentItem) => void;
 }
@@ -20,7 +19,6 @@ export const TorrentList: React.FC<TorrentListProps> = ({
   onOpenPlayer,
   onOpenInfo,
   onDelete,
-  onLoadSamples,
   onSelectFiles,
   onOpenSeparateLinks,
 }) => {
@@ -155,16 +153,8 @@ export const TorrentList: React.FC<TorrentListProps> = ({
           <p className="text-xs text-neutral-500 max-w-md mx-auto mt-1 mb-5">
             {searchQuery
               ? `No torrents match "${searchQuery}". Clear your search query to see all items.`
-              : 'Paste a magnet link in the box above to generate an instant direct download link, or load our pre-cached legal sample torrents.'}
+              : 'Paste a magnet link above to add a real qBittorrent download.'}
           </p>
-
-          <button
-            onClick={onLoadSamples}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-medium text-xs transition-colors border border-emerald-200 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span>Load Sample Torrents</span>
-          </button>
         </div>
       ) : (
         /* Torrent Grid or List */

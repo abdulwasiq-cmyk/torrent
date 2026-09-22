@@ -25,7 +25,7 @@ export interface TorrentItem {
   uploadSpeed: number; // bytes per sec
   seeds: number;
   leechers: number;
-  cached: boolean; // Instant debrid cache hit
+  cached: boolean; // Reserved for API compatibility; qBittorrent has no cache state
   createdAt: number;
   completedAt?: number;
   trackers: string[];
@@ -46,15 +46,3 @@ export interface CloudStats {
   uptime: string;
 }
 
-export interface DownloadQueueItem {
-  id: string;
-  torrentId: string;
-  torrentName: string;
-  fileId: string;
-  name: string;
-  size: number;
-  progress: number;
-  speed: number;
-  status: 'queued' | 'downloading' | 'done';
-  startedAt: number;
-}

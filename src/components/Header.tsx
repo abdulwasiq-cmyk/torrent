@@ -1,12 +1,11 @@
 import React from 'react';
-import { Cloud, Zap, HardDrive, RefreshCw, Trash2, Server } from 'lucide-react';
+import { Cloud, Zap, HardDrive, Trash2, Server } from 'lucide-react';
 import { StorageStats, CloudStats } from '../types';
 import { formatBytes } from '../utils/formatters';
 
 interface HeaderProps {
   storage: StorageStats;
   cloudStats: CloudStats | null;
-  onResetSamples: () => void;
   onClearStorage: () => void;
   onOpenBulkExport: () => void;
   totalTorrents: number;
@@ -15,7 +14,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   storage,
   cloudStats,
-  onResetSamples,
   onClearStorage,
   onOpenBulkExport,
   totalTorrents,
@@ -44,11 +42,11 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-                  Debrid 100% Ready
+                  qBittorrent connected
                 </span>
               </div>
               <p className="text-xs text-neutral-500 font-normal">
-                High-speed cloud torrent caching & instant direct HTTP download link generator
+                qBittorrent downloads with direct HTTP links and media streaming
               </p>
             </div>
           </div>
@@ -98,13 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
                   Export Links
                 </button>
               )}
-              <button
-                onClick={onResetSamples}
-                title="Reset to default legal sample torrents"
-                className="p-1.5 text-xs font-medium rounded-lg text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 transition-colors border border-neutral-200"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </button>
               {totalTorrents > 0 && (
                 <button
                   onClick={onClearStorage}

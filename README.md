@@ -5,9 +5,8 @@ A small React + Express app for inspecting magnet links, browsing local download
 ## What this project does
 
 - Accepts magnet links or info hashes
-- Tries to inspect and resolve torrent metadata
-- Prefers real locally downloaded files already present under the project downloads directory
-- Falls back to qBittorrent when available
+- Inspects and resolves torrent metadata through qBittorrent
+- Uses qBittorrent as the source of truth for torrent state and files
 - Serves actual file bytes through the app for playback and download
 - Exposes a simple web UI for selecting files and downloading them
 
@@ -15,14 +14,13 @@ A small React + Express app for inspecting magnet links, browsing local download
 
 - React + Vite
 - Express + TypeScript
-- WebTorrent
-- qBittorrent via Docker
+- qBittorrent Web API via Docker
 - Archiver for ZIP exports
 
 ## Project structure
 
 - src/ — React app UI and components
-- server.ts — Express API and torrent metadata logic
+- server.ts — Express API and qBittorrent integration
 - downloads/ — actual downloaded torrent content
 - qbittorrent/config — qBittorrent runtime config
 - docker-compose.yml — qBittorrent service definition
@@ -49,7 +47,7 @@ DOWNLOAD_DIR=./downloads
 ## Start qBittorrent
 
 ```bash
-docker compose up -d
+docker compose up -d qbittorrent
 ```
 
 This starts the qBittorrent web UI on:

@@ -20,6 +20,9 @@ services:
       - ./downloads:/downloads
       - /app/node_modules
     command: sh -lc "npm install && npm run dev"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
 
   qbittorrent:
     image: linuxserver/qbittorrent:latest
@@ -30,8 +33,6 @@ services:
       - PGID=1000
       - TZ=UTC
       - WEBUI_PORT=8080
-      - WEBUI_USERNAME=admin
-      - WEBUI_PASSWORD=adminadmin
       - TORRENTING_PORT=6881
     volumes:
       - ./downloads:/downloads
@@ -40,3 +41,6 @@ services:
       - "8080:8080"
       - "6881:6881"
       - "6881:6881/udp"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8

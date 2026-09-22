@@ -7,7 +7,7 @@ import { MediaPlayerModal } from './components/MediaPlayerModal';
 import { TorrentInfoModal } from './components/TorrentInfoModal';
 import { DirectLinksExportModal } from './components/DirectLinksExportModal';
 import { FileSelectionModal } from './components/FileSelectionModal';
-import { TorrentItem, TorrentFile, StorageStats, CloudStats, DownloadQueueItem } from './types';
+import { TorrentItem, TorrentFile, StorageStats, CloudStats } from './types';
 import { Zap, ShieldCheck, HardDrive, CheckCircle2, AlertCircle, Download, Server } from 'lucide-react';
 import { formatBytes, formatSpeed } from './utils/formatters';
 
@@ -21,7 +21,6 @@ export default function App() {
     fileCount: 0,
   });
   const [cloudStats, setCloudStats] = useState<CloudStats | null>(null);
-  const [downloadQueue, setDownloadQueue] = useState<DownloadQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -60,23 +59,19 @@ export default function App() {
     }
   }, []);
 
-  // Fetch torrents and storage stats
   const fetchTorrents = useCallback(async () => {
     try {
       const res = await fetch('/api/torrents');
       if (res.ok) {
         const data = await res.json();
         setTorrents(data.torrents || []);
-        if (data.storage) {
-          setStorage(data.storage);
-        }
+        if (data.storage) setStorage(data.storage);
       }
     } catch (err) {
       console.error('Failed to load torrents', err);
     }
   }, []);
 
-  // Fetch telemetry
   const fetchTelemetry = useCallback(async () => {
     try {
       const res = await fetch('/api/system/stats');
@@ -97,44 +92,12 @@ export default function App() {
   }, [fetchTorrents, fetchTelemetry]);
 
   useEffect(() => {
-    if (downloadQueue.length === 0) return;
+    const waitingForMetadata = torrents.some((torrent) => torrent.files.length === 0 || torrent.totalSize === 0);
+    if (!waitingForMetadata) return;
 
-    const timer = setInterval(() => {
-      setDownloadQueue((prev) => {
-        const updated = prev.map((item) => {
-          if (item.status === 'done') return item;
-
-          const nextProgress = Math.min(100, item.progress + (Math.random() * 18 + 8));
-          const nextSpeed = Math.max(300000, Math.random() * 5000000 + 1200000);
-
-          if (nextProgress >= 100) {
-            return {
-              ...item,
-              progress: 100,
-              speed: nextSpeed,
-              status: 'done',
-            };
-          }
-
-          return {
-            ...item,
-            progress: nextProgress,
-            speed: nextSpeed,
-            status: 'downloading',
-          };
-        });
-
-        const activeItems = updated.filter((item) => item.status !== 'done');
-        if (activeItems.length === 0) {
-          return [];
-        }
-
-        return updated;
-      });
-    }, 1600);
-
-    return () => clearInterval(timer);
-  }, [downloadQueue.length]);
+    const interval = setInterval(fetchTorrents, 2000);
+    return () => clearInterval(interval);
+  }, [torrents, fetchTorrents]);
 
   // Add magnet with PRE-DOWNLOAD file selection (Requirement #1)
   const handleAddMagnet = async (magnet: string): Promise<boolean> => {
@@ -152,10 +115,10 @@ export default function App() {
         throw new Error(inspectData.error || 'Failed to inspect magnet link');
       }
 
-      // If already stored in cloud storage, show toast and offer file selection
+      // If qBittorrent already has the torrent, show its current state.
       if (inspectData.alreadyExists) {
         await fetchTorrents();
-        showToast('This torrent is already in your cloud storage!');
+        showToast('This torrent is already in qBittorrent.');
         if (inspectData.torrent && inspectData.torrent.files.length > 1) {
           setIsPreDownloadSelection(false);
           setSelectionModalTab('selection');
@@ -177,13 +140,13 @@ export default function App() {
           totalSize: inspectData.totalSize,
           fileCount: files.length,
           files: inspectData.files,
-          status: 'ready',
-          progress: 100,
+          status: 'downloading',
+          progress: 0,
           downloadSpeed: 0,
           uploadSpeed: 0,
-          seeds: 184,
-          leechers: 14,
-          cached: true,
+          seeds: 0,
+          leechers: 0,
+          cached: false,
           createdAt: Date.now(),
           completedAt: Date.now(),
           trackers: inspectData.trackers || [],
@@ -197,8 +160,7 @@ export default function App() {
         return true;
       }
 
-      // If single-file torrent, download directly to cloud storage
-      setLoadingMessage('Fetching instant cloud link...');
+      setLoadingMessage('Adding torrent to qBittorrent...');
       const addRes = await fetchWithTimeout('/api/torrents/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -207,11 +169,11 @@ export default function App() {
 
       const addData = await addRes.json();
       if (!addRes.ok) {
-        throw new Error(addData.error || 'Failed to download file to cloud storage');
+        throw new Error(addData.error || 'Failed to add torrent to qBittorrent');
       }
 
       await fetchTorrents();
-      showToast(addData.message || 'File downloaded to cloud storage with instant direct link ready!');
+      showToast(addData.message || 'Torrent added to qBittorrent.');
       return true;
     } catch (err: any) {
       showToast(err.message || 'Error processing magnet link', 'error');
@@ -242,28 +204,10 @@ export default function App() {
         throw new Error(data.error || 'Failed to start cloud download');
       }
 
-      const queuedFiles = (data.torrent?.files || []).filter((file: TorrentFile) => selectedFileIds.includes(file.id));
-      const queueItems: DownloadQueueItem[] = queuedFiles.map((file: TorrentFile) => ({
-        id: `${file.id}-queue-${Date.now()}`,
-        torrentId: data.torrent?.id || file.torrentId,
-        torrentName: data.torrent?.name || 'Cloud download',
-        fileId: file.id,
-        name: file.name,
-        size: file.size,
-        progress: 4,
-        speed: Math.random() * 4500000 + 1500000,
-        status: 'downloading',
-        startedAt: Date.now(),
-      }));
-
-      if (queueItems.length > 0) {
-        setDownloadQueue((prev) => [...prev, ...queueItems]);
-      }
-
       await fetchTorrents();
       showToast(
         data.message ||
-          `Downloaded ${selectedFileIds.length} selected file${selectedFileIds.length > 1 ? 's' : ''} to cloud storage! Separate links ready.`
+          `Started qBittorrent download for ${selectedFileIds.length} selected file${selectedFileIds.length > 1 ? 's' : ''}.`
       );
 
       // Keep modal open with the new torrent in "Separate Links" tab so user can immediately copy/download!
@@ -285,7 +229,7 @@ export default function App() {
       const res = await fetch(`/api/torrents/${torrentId}`, { method: 'DELETE' });
       if (res.ok) {
         await fetchTorrents();
-        showToast('Torrent removed from cloud storage');
+        showToast('Torrent removed from qBittorrent');
         if (activeFolderTorrent?.id === torrentId) {
           setActiveFolderTorrent(null);
         }
@@ -295,29 +239,16 @@ export default function App() {
     }
   };
 
-  // Reset to sample legal torrents
-  const handleResetSamples = async () => {
-    try {
-      const res = await fetch('/api/torrents/reset-samples', { method: 'POST' });
-      if (res.ok) {
-        await fetchTorrents();
-        showToast('Restored default high-speed sample torrents');
-      }
-    } catch {
-      showToast('Failed to reset samples', 'error');
-    }
-  };
-
   // Clear all storage
   const handleClearStorage = async () => {
-    if (!confirm('Are you sure you want to clear your cloud drive? All cached files will be removed.')) {
+    if (!confirm('Are you sure you want to remove all qBittorrent torrents and downloaded files?')) {
       return;
     }
     try {
       const res = await fetch('/api/torrents', { method: 'DELETE' });
       if (res.ok) {
         await fetchTorrents();
-        showToast('Cloud storage cleared');
+        showToast('qBittorrent storage cleared');
       }
     } catch {
       showToast('Failed to clear cloud storage', 'error');
@@ -358,7 +289,6 @@ export default function App() {
       <Header
         storage={storage}
         cloudStats={cloudStats}
-        onResetSamples={handleResetSamples}
         onClearStorage={handleClearStorage}
         onOpenBulkExport={() => setIsBulkExportOpen(true)}
         totalTorrents={torrents.length}
@@ -374,7 +304,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
-                Instant Cloud Debrid & High-Speed Direct Downloader
+                qBittorrent Downloads & Direct Links
               </h1>
               <p className="text-xs text-neutral-300">
                 Downloads directly on 10 Gbps cloud servers and provides instant HTTP direct download links, media streaming, and ZIP bundling.
@@ -394,44 +324,13 @@ export default function App() {
           </div>
         </div>
 
-        {downloadQueue.length > 0 && (
-          <div className="mb-6 rounded-2xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-base font-semibold text-neutral-100">
-                <Download className="w-4 h-4 text-emerald-400" />
-                Active download queue
-              </div>
-              <span className="text-xs text-neutral-400">{downloadQueue.filter((item) => item.status !== 'done').length} running</span>
-            </div>
-            <div className="space-y-3">
-              {downloadQueue.map((item) => (
-                <div key={item.id} className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-3">
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-neutral-100 truncate">{item.name}</div>
-                      <div className="text-[11px] text-neutral-400 truncate">{item.torrentName}</div>
-                    </div>
-                    <div className="text-right text-[11px] text-neutral-300">
-                      <div>{Math.round(item.progress)}%</div>
-                      <div>{formatSpeed(item.speed)}</div>
-                    </div>
-                  </div>
-                  <div className="h-2 rounded-full bg-neutral-800 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${item.progress}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         <MagnetInputBar onAddMagnet={handleAddMagnet} isLoading={isLoading} loadingMessage={loadingMessage} />
 
         {/* Torrents & Cloud File Manager Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-neutral-900 tracking-tight flex items-center gap-2">
-              <span>Your Cloud Storage</span>
+              <span>Your qBittorrent Downloads</span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-neutral-200 text-neutral-700 font-mono">
                 {torrents.length} items
               </span>
@@ -444,7 +343,6 @@ export default function App() {
             onOpenPlayer={handleOpenPlayer}
             onOpenInfo={(torrent) => setActiveInfoTorrent(torrent)}
             onDelete={handleDeleteTorrent}
-            onLoadSamples={handleResetSamples}
             onSelectFiles={(torrent) => {
               setIsPreDownloadSelection(false);
               setSelectionModalTab('selection');
@@ -463,9 +361,9 @@ export default function App() {
       <footer className="border-t border-neutral-200 bg-white py-6 mt-12 text-xs text-neutral-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-neutral-800">InstantSeeder Cloud Debrid</span>
+            <span className="font-semibold text-neutral-800">InstantSeeder qBittorrent</span>
             <span>•</span>
-            <span>High-speed magnet cache with instant HTTP direct links</span>
+            <span>Real qBittorrent state with HTTP direct links</span>
           </div>
           <div className="flex items-center gap-4 text-neutral-400">
             <span>HTTP 206 Partial Content (Resume Support)</span>
