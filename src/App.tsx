@@ -23,6 +23,7 @@ export default function App() {
   const [cloudStats, setCloudStats] = useState<CloudStats | null>(null);
   const [downloadQueue, setDownloadQueue] = useState<DownloadQueueItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Modals state
@@ -41,6 +42,22 @@ export default function App() {
     setTimeout(() => {
       setToast(null);
     }, 3500);
+  }, []);
+
+  const fetchWithTimeout = useCallback(async (url: string, options: RequestInit = {}, timeoutMs = 25000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out while fetching instant link. Please try again.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }, []);
 
   // Fetch torrents and storage stats
@@ -122,13 +139,13 @@ export default function App() {
   // Add magnet with PRE-DOWNLOAD file selection (Requirement #1)
   const handleAddMagnet = async (magnet: string): Promise<boolean> => {
     setIsLoading(true);
+    setLoadingMessage('Inspecting magnet metadata...');
     try {
-      // Step 1: Inspect the magnet metadata to discover all files BEFORE downloading
-      const inspectRes = await fetch('/api/torrents/inspect', {
+      const inspectRes = await fetchWithTimeout('/api/torrents/inspect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ magnet }),
-      });
+      }, 25000);
 
       const inspectData = await inspectRes.json();
       if (!inspectRes.ok) {
@@ -148,6 +165,7 @@ export default function App() {
       }
 
       const files = inspectData.files || [];
+      setLoadingMessage('Preparing file selection...');
 
       // REQUIREMENT 1: If there are multiple files, ASK FIRST which ones to download!
       if (files.length > 1) {
@@ -180,11 +198,12 @@ export default function App() {
       }
 
       // If single-file torrent, download directly to cloud storage
-      const addRes = await fetch('/api/torrents/add', {
+      setLoadingMessage('Fetching instant cloud link...');
+      const addRes = await fetchWithTimeout('/api/torrents/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ magnet }),
-      });
+      }, 25000);
 
       const addData = await addRes.json();
       if (!addRes.ok) {
@@ -199,6 +218,7 @@ export default function App() {
       return false;
     } finally {
       setIsLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -206,15 +226,16 @@ export default function App() {
   const handleStartCloudDownload = async (selectedFileIds: string[]) => {
     if (!pendingMagnetUri || selectedFileIds.length === 0) return;
     setIsLoading(true);
+    setLoadingMessage('Downloading selected files...');
     try {
-      const res = await fetch('/api/torrents/add', {
+      const res = await fetchWithTimeout('/api/torrents/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           magnet: pendingMagnetUri,
           selectedFileIds,
         }),
-      });
+      }, 25000);
 
       const data = await res.json();
       if (!res.ok) {
@@ -404,7 +425,7 @@ export default function App() {
           </div>
         )}
 
-        <MagnetInputBar onAddMagnet={handleAddMagnet} isLoading={isLoading} />
+        <MagnetInputBar onAddMagnet={handleAddMagnet} isLoading={isLoading} loadingMessage={loadingMessage} />
 
         {/* Torrents & Cloud File Manager Section */}
         <div className="space-y-4">

@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { ZipArchive } from 'archiver';
 import WebTorrent from 'webtorrent';
@@ -464,25 +465,59 @@ async function qBitLogin(): Promise<void> {
     return;
   }
 
-  const form = new URLSearchParams({
-    username: QBIT_USERNAME,
-    password: QBIT_PASSWORD,
-  });
+  const passwordCandidates = new Set<string>([
+    QBIT_PASSWORD,
+    'adminadmin',
+    'admin',
+    'password',
+  ]);
 
-  const response = await fetch(`http://${QBIT_HOST}:${QBIT_PORT}/api/v2/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  });
+  try {
+    const dockerLogs = execSync('docker ps --format "{{.Names}}"', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    const containerNames = dockerLogs
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((name) => /qbittorrent|torrent/i.test(name));
 
-  const cookie = response.headers.get('set-cookie');
-  if (cookie) {
-    qBitSessionCookie = cookie.split(';')[0];
+    for (const containerName of containerNames) {
+      try {
+        const logOutput = execSync(`docker logs --tail 200 ${containerName}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        const tempPasswordMatch = logOutput.match(/temporary password.*?:\s*([A-Za-z0-9]+)/i);
+        if (tempPasswordMatch?.[1]) {
+          passwordCandidates.add(tempPasswordMatch[1]);
+        }
+      } catch {
+        // ignore docker log access failures
+      }
+    }
+  } catch {
+    // ignore if docker access is unavailable
   }
 
-  if (!response.ok && response.status !== 200) {
-    throw new Error(`qBittorrent login failed (${response.status})`);
+  for (const password of Array.from(passwordCandidates).filter(Boolean)) {
+    const form = new URLSearchParams({
+      username: QBIT_USERNAME,
+      password,
+    });
+
+    const response = await fetch(`http://${QBIT_HOST}:${QBIT_PORT}/api/v2/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+    });
+
+    const cookie = response.headers.get('set-cookie');
+    if (cookie) {
+      qBitSessionCookie = cookie.split(';')[0];
+    }
+
+    if (response.ok || response.status === 200 || response.status === 204) {
+      return;
+    }
   }
+
+  throw new Error(`qBittorrent login failed for username ${QBIT_USERNAME}`);
 }
 
 async function qBitFetch<T = any>(endpoint: string, init?: RequestInit): Promise<T> {

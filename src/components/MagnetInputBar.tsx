@@ -4,6 +4,7 @@ import { Zap, Link2, Clipboard, ArrowRight, Loader2, Sparkles, CheckCircle2 } fr
 interface MagnetInputBarProps {
   onAddMagnet: (magnet: string) => Promise<boolean>;
   isLoading: boolean;
+  loadingMessage?: string;
 }
 
 const SAMPLE_MAGNETS = [
@@ -39,7 +40,7 @@ const SAMPLE_MAGNETS = [
   },
 ];
 
-export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isLoading }) => {
+export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isLoading, loadingMessage }) => {
   const [magnetInput, setMagnetInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -128,7 +129,7 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Resolving Debrid...</span>
+                <span>{loadingMessage || 'Resolving Debrid...'}</span>
               </>
             ) : (
               <>
@@ -139,6 +140,17 @@ export const MagnetInputBar: React.FC<MagnetInputBarProps> = ({ onAddMagnet, isL
             )}
           </button>
         </div>
+
+        {isLoading && (
+          <div className="mt-3">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-200">
+              <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600" />
+            </div>
+            <div className="mt-2 text-[11px] font-medium text-neutral-600">
+              {loadingMessage || 'Resolving metadata and preparing your instant link...'}
+            </div>
+          </div>
+        )}
 
         {/* Status alerts */}
         {error && (
