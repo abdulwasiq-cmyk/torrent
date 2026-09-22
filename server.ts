@@ -300,12 +300,12 @@ async function getQBitInfo(infoHash: string): Promise<any | null> {
 }
 
 async function addMagnetToQBit(magnet: string, paused = false): Promise<string> {
-  const savePath = QBIT_DOWNLOAD_DIR;
-  fs.mkdirSync(savePath, { recursive: true });
+  const qBContainerSavePath = QBIT_CONTAINER_DOWNLOAD_DIR;
+  fs.mkdirSync(QBIT_DOWNLOAD_DIR, { recursive: true });
 
   const params = new URLSearchParams({
     urls: magnet,
-    savepath: savePath,
+    savepath: qBContainerSavePath,
     paused: paused ? 'true' : 'false',
   });
 
