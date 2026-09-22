@@ -1,0 +1,6 @@
+{
+  "name": "Instant Cloud Torrent Downloader",
+  "description": "A high-speed cloud debrid and seeder web application that fetches magnet links instantly, streams media in-browser, and provides high-speed direct download links.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
