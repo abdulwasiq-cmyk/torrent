@@ -200,7 +200,18 @@ export const FileSelectionModal: React.FC<FileSelectionModalProps> = ({
 
   const handleDownloadSingle = (file: TorrentFile, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    window.location.href = `/api/download/${file.id}`;
+    const link = document.createElement('a');
+    link.href = `/api/download/${file.id}`;
+    link.download = file.name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
   };
 
   // Copy all separate links to clipboard
@@ -293,13 +304,36 @@ export const FileSelectionModal: React.FC<FileSelectionModalProps> = ({
 
     if (selectedIds.size === 1) {
       const singleId = Array.from(selectedIds)[0];
-      window.location.href = `/api/download/${singleId}`;
+      const singleFile = sortedFiles.find((f) => f.id === singleId);
+      const link = document.createElement('a');
+      link.href = `/api/download/${singleId}`;
+      if (singleFile) link.download = singleFile.name;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 200);
       onClose();
       return;
     }
 
     const fileIdsParam = Array.from(selectedIds).join(',');
-    window.location.href = `/api/torrents/${torrent.id}/zip?files=${encodeURIComponent(fileIdsParam)}`;
+    const link = document.createElement('a');
+    link.href = `/api/torrents/${torrent.id}/zip?files=${encodeURIComponent(fileIdsParam)}`;
+    link.download = `${torrent.name}_selected.zip`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
     onClose();
   };
 

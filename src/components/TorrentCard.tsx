@@ -68,13 +68,34 @@ export const TorrentCard: React.FC<TorrentCardProps> = ({
     }
 
     if (!primaryFile) return;
-    const downloadUrl = `/api/download/${primaryFile.id}`;
-    window.location.href = downloadUrl;
+    const link = document.createElement('a');
+    link.href = `/api/download/${primaryFile.id}`;
+    link.download = primaryFile.name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
   };
 
   const handleDownloadZip = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.location.href = `/api/torrents/${torrent.id}/zip`;
+    const link = document.createElement('a');
+    link.href = `/api/torrents/${torrent.id}/zip`;
+    link.download = `${torrent.name}.zip`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
   };
 
   if (viewMode === 'list') {

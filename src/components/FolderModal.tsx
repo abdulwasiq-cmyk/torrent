@@ -137,22 +137,67 @@ export const FolderModal: React.FC<FolderModalProps> = ({ torrent, onClose, onOp
   };
 
   const handleDirectDownload = (file: TorrentFile) => {
-    window.location.href = `/api/download/${file.id}`;
+    const link = document.createElement('a');
+    link.href = `/api/download/${file.id}`;
+    link.download = file.name;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
   };
 
   const handleDownloadZipAll = () => {
-    window.location.href = `/api/torrents/${torrent.id}/zip`;
+    const link = document.createElement('a');
+    link.href = `/api/torrents/${torrent.id}/zip`;
+    link.download = `${torrent.name}.zip`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
   };
 
   const handleDownloadSelected = () => {
     if (selectedIds.size === 0) return;
     if (selectedIds.size === 1) {
       const singleId = Array.from(selectedIds)[0];
-      window.location.href = `/api/download/${singleId}`;
+      const singleFile = files.find((f) => f.id === singleId);
+      const link = document.createElement('a');
+      link.href = `/api/download/${singleId}`;
+      if (singleFile) link.download = singleFile.name;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 200);
       return;
     }
     const fileIdsParam = Array.from(selectedIds).join(',');
-    window.location.href = `/api/torrents/${torrent.id}/zip?files=${encodeURIComponent(fileIdsParam)}`;
+    const link = document.createElement('a');
+    link.href = `/api/torrents/${torrent.id}/zip?files=${encodeURIComponent(fileIdsParam)}`;
+    link.download = `${torrent.name}_selected.zip`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 200);
   };
 
   const getFileIcon = (file: TorrentFile) => {
